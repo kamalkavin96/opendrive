@@ -50,6 +50,7 @@ public class FolderService {
         Folder folder = new Folder();
         folder.setName(name);
         folder.setParent(parent);
+        folder.setColor(request.color());
         return FolderResponse.from(folderRepository.save(folder));
     }
 
@@ -90,13 +91,16 @@ public class FolderService {
     }
 
     @Transactional
-    public FolderResponse rename(UUID id, String newName) {
+    public FolderResponse rename(UUID id, String newName, String color) {
         String name = NameValidator.validate(newName, "Folder name");
         Folder folder = findActive(id);
 
         if (!folder.getName().equals(name)) {
             assertNameAvailable(name, parentId(folder));
             folder.setName(name);
+        }
+        if (color != null && !color.isBlank()) {
+            folder.setColor(validateColor(color));
         }
         return FolderResponse.from(folderRepository.save(folder));
     }
@@ -165,5 +169,15 @@ public class FolderService {
         if (exists) {
             throw new ConflictException("A folder named '" + name + "' already exists here");
         }
+    }
+
+    private String validateColor(String color) {
+        if (!color.matches("^#[0-9A-Fa-f]{6}$")) {
+            throw new IllegalArgumentException(
+                    "Invalid folder color. Expected HEX format, e.g. #F9A825"
+            );
+        }
+
+        return color.toUpperCase();
     }
 }

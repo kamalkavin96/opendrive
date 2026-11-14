@@ -7,11 +7,11 @@ export const foldersApi = {
       .get<FolderContents>(folderId ? `/folders/${folderId}/contents` : '/folders/root/contents')
       .then((r) => r.data),
 
-  create: (name: string, parentId?: string) =>
-    http.post<FolderResponse>('/folders', { name, parentId: parentId ?? null }).then((r) => r.data),
+  create: (name: string, parentId?: string, color?: string,) =>
+    http.post<FolderResponse>('/folders', { name, parentId: parentId ?? null , color: color ?? null,}).then((r) => r.data),
 
-  rename: (id: string, name: string) =>
-    http.put(`/folders/${id}/rename`, { name }).then(() => undefined),
+  rename: (id: string, name: string, color?: string) =>
+    http.put(`/folders/${id}/rename`, { name, color }).then(() => undefined),
 
   move: (id: string, targetFolderId: string | null) =>
     http.put(`/folders/${id}/move`, { targetFolderId }).then(() => undefined),

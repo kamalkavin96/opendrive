@@ -17,8 +17,16 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "folders", indexes = @Index(name = "idx_folders_parent", columnList = "parent_id"))
+@Table(
+        name = "folders",
+        indexes = @Index(
+                name = "idx_folders_parent",
+                columnList = "parent_id"
+        )
+)
 public class Folder {
+
+    private static final String DEFAULT_COLOR = "#F9A825";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -26,6 +34,9 @@ public class Folder {
 
     @Column(nullable = false, length = 255)
     private String name;
+
+    @Column(nullable = false, length = 7)
+    private String color = DEFAULT_COLOR;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
@@ -43,8 +54,13 @@ public class Folder {
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();
+
         this.createdAt = now;
         this.updatedAt = now;
+
+        if (this.color == null || this.color.isBlank()) {
+            this.color = DEFAULT_COLOR;
+        }
     }
 
     @PreUpdate
@@ -62,6 +78,14 @@ public class Folder {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
     }
 
     public Folder getParent() {

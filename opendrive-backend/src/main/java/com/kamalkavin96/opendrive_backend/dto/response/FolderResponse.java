@@ -10,7 +10,8 @@ public record FolderResponse(
         String name,
         UUID parentId,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        String color
 ) {
     public static FolderResponse from(Folder folder) {
         return new FolderResponse(
@@ -18,7 +19,8 @@ public record FolderResponse(
                 folder.getName(),
                 folder.getParent() == null ? null : folder.getParent().getId(),
                 folder.getCreatedAt(),
-                folder.getUpdatedAt()
+                folder.getUpdatedAt(),
+                folder.getColor()
         );
     }
 }

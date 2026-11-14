@@ -45,21 +45,38 @@ export function useDriveMutations() {
     dispatch(noticeShown({ message: errorMessage(error), severity: 'error' }));
   };
 
-  const createFolder = useMutation({
-    mutationFn: ({ name, parentId }: { name: string; parentId?: string }) =>
-      foldersApi.create(name, parentId),
-    onSuccess: () => succeed('Folder created'),
-    onError: fail,
-  });
+const createFolder = useMutation({
+  mutationFn: ({
+    name,
+    parentId,
+    color,
+  }: {
+    name: string;
+    parentId?: string;
+    color?: string;
+  }) => foldersApi.create(name, parentId, color),
 
-  const rename = useMutation({
-    mutationFn: ({ item, name }: { item: DriveItem; name: string }) =>
-      item.kind === 'folder'
-        ? foldersApi.rename(item.data.id, name)
-        : filesApi.rename(item.data.id, name),
-    onSuccess: () => succeed('Renamed'),
-    onError: fail,
-  });
+  onSuccess: () => succeed('Folder created'),
+  onError: fail,
+});
+
+const rename = useMutation({
+  mutationFn: ({
+    item,
+    name,
+    color,
+  }: {
+    item: DriveItem;
+    name: string;
+    color?: string;
+  }) =>
+    item.kind === 'folder'
+      ? foldersApi.rename(item.data.id, name, color)
+      : filesApi.rename(item.data.id, name),
+
+  onSuccess: () => succeed('Renamed'),
+  onError: fail,
+});
 
   const move = useMutation({
     mutationFn: ({ item, targetId }: { item: DriveItem; targetId: string | null }) =>

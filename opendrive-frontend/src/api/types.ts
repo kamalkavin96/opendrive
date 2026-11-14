@@ -4,6 +4,7 @@ export interface FolderResponse {
   parentId: string | null;
   createdAt: string;
   updatedAt: string;
+  color: string | null;
 }
 
 export interface FileResponse {
@@ -25,5 +26,11 @@ export interface FolderContents {
 }
 
 export type DriveItem =
-  | { kind: 'folder'; data: FolderResponse }
-  | { kind: 'file'; data: FileResponse };
+  | {
+      kind: 'folder';
+      data: FolderResponse;
+    }
+  | {
+      kind: 'file';
+      data: FileResponse;
+    };

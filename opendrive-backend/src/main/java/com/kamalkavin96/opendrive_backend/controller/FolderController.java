@@ -59,7 +59,7 @@ public class FolderController {
 
     @PutMapping("/{id}/rename")
     public FolderResponse rename(@PathVariable UUID id, @Valid @RequestBody RenameRequest request) {
-        return folderService.rename(id, request.name());
+        return folderService.rename(id, request.name(), request.color());
     }
 
     @PutMapping("/{id}/move")

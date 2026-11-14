@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
+
 import {
+  Alert,
   Box,
   Breadcrumbs,
   Button,
@@ -14,60 +16,311 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import { MdArrowUpward, MdFolder } from 'react-icons/md';
+
+import {
+  MdArrowUpward,
+  MdCheck,
+  MdFolder,
+} from 'react-icons/md';
+
 import type { DriveItem } from '../api/types';
 import { useContents } from '../hooks/useDrive';
+
+import {
+  FOLDER_COLORS,
+  DEFAULT_FOLDER_COLOR,
+} from '../constants/folderColors';
+
+// --------------------------------------------------
+// Shared styles
+// --------------------------------------------------
+
+const dialogSx = {
+  '& .MuiDialog-paper': {
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+};
+
+const titleSx = {
+  fontWeight: 700,
+  fontSize: '1.2rem',
+  pb: 1,
+};
+
+const actionSx = {
+  px: 3,
+  py: 2,
+  gap: 1,
+};
+
+// --------------------------------------------------
+// Name Dialog
+// Create folder, rename folder and rename file.
+// --------------------------------------------------
 
 interface NameDialogProps {
   title: string;
   label: string;
   initialValue?: string;
   confirmLabel: string;
-  onSubmit: (value: string) => Promise<unknown>;
+  showFolderColor?: boolean;
+  initialColor?: string;
+  onSubmit: (value: string, color?: string) => Promise<unknown>;
   onClose: () => void;
 }
 
-/** Reusable single-field dialog for "New folder" and "Rename". */
-export function NameDialog({ title, label, initialValue = '', confirmLabel, onSubmit, onClose }: NameDialogProps) {
+export function NameDialog({
+  title,
+  label,
+  initialValue = '',
+  confirmLabel,
+  showFolderColor = false,
+  initialColor = DEFAULT_FOLDER_COLOR,
+  onSubmit,
+  onClose,
+}: Readonly<NameDialogProps>) {
   const [value, setValue] = useState(initialValue);
+  const [color, setColor] = useState(initialColor);
   const [busy, setBusy] = useState(false);
+
+  const isRename = initialValue.length > 0;
+
+  const hasChanges =
+    value.trim() !== initialValue.trim() ||
+    (showFolderColor && color !== initialColor);
+
+  const canSubmit =
+    value.trim().length > 0 &&
+    (!isRename || hasChanges) &&
+    !busy;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!value.trim()) return;
+
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue || busy || !canSubmit) return;
+
     setBusy(true);
+
     try {
-      await onSubmit(value.trim());
+      await onSubmit(
+        trimmedValue,
+        showFolderColor ? color : undefined,
+      );
+
       onClose();
     } catch {
-      // The mutation already reported the error; keep the dialog open so the name can be fixed.
       setBusy(false);
     }
   };
 
   return (
-    <Dialog open onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog
+      open
+      onClose={busy ? undefined : onClose}
+      fullWidth
+      maxWidth="xs"
+      sx={dialogSx}
+    >
       <form onSubmit={submit}>
-        <DialogTitle>{title}</DialogTitle>
-        <DialogContent>
+        <DialogTitle sx={titleSx}>
+          {title}
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              mt: 0.5,
+              fontWeight: 400,
+            }}
+          >
+            {showFolderColor
+              ? isRename
+                ? 'Update your folder name or appearance.'
+                : 'Create a folder to organize your files.'
+              : isRename
+                ? 'Update the name of your item.'
+                : 'Enter a name to continue.'}
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: '12px !important' }}>
           <TextField
             autoFocus
             fullWidth
-            margin="dense"
             label={label}
+            placeholder="Enter name"
             value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            slotProps={{ htmlInput: { maxLength: 255 } }}
+            onChange={(event) => setValue(event.target.value)}
+            onFocus={(event) => event.target.select()}
+            disabled={busy}
+            slotProps={{
+              htmlInput: {
+                maxLength: 255,
+              },
+            }}
           />
+
+          {/* Folder color selector */}
+
+          {showFolderColor && (
+            <Box sx={{ mt: 3 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ mb: 1.5 }}
+              >
+                <Typography
+                  fontWeight={600}
+                  fontSize={14}
+                >
+                  Folder color
+                </Typography>
+
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  {color.toUpperCase()}
+                </Typography>
+              </Stack>
+
+              <Stack
+                direction="row"
+                flexWrap="wrap"
+                gap={1.3}
+              >
+                {FOLDER_COLORS.map((itemColor) => {
+                  const selected = color === itemColor;
+
+                  return (
+                    <Tooltip
+                      key={itemColor}
+                      title={itemColor}
+                    >
+                      <Box
+                        component="button"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setColor(itemColor)}
+                        aria-label={`Select folder color ${itemColor}`}
+                        aria-pressed={selected}
+                        sx={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: '50%',
+                          bgcolor: itemColor,
+                          border: selected
+                            ? '3px solid'
+                            : '2px solid transparent',
+                          borderColor: selected
+                            ? 'text.primary'
+                            : 'transparent',
+                          outline: selected
+                            ? '2px solid'
+                            : 'none',
+                          outlineColor: 'background.paper',
+                          cursor: busy ? 'default' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'transform 0.15s ease',
+                          '&:hover': {
+                            transform: 'scale(1.12)',
+                          },
+                          '&:focus-visible': {
+                            outline: '2px solid',
+                            outlineColor: 'primary.main',
+                          },
+                        }}
+                      >
+                        {selected && (
+                          <MdCheck
+                            color="#ffffff"
+                            size={19}
+                          />
+                        )}
+                      </Box>
+                    </Tooltip>
+                  );
+                })}
+              </Stack>
+
+              {/* Folder preview */}
+
+              <Box
+                sx={{
+                  mt: 2.5,
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: 'action.hover',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                }}
+              >
+                <MdFolder
+                  size={30}
+                  color={color}
+                />
+
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    fontWeight={600}
+                    fontSize={14}
+                    noWrap
+                  >
+                    {value.trim() || 'New folder'}
+                  </Typography>
+
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                  >
+                    Folder preview
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={busy || !value.trim()}>
-            {confirmLabel}
+
+        <DialogActions sx={actionSx}>
+          <Button
+            color="inherit"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="submit"
+            variant="contained"
+            disableElevation
+            disabled={!canSubmit}
+            startIcon={
+              busy ? (
+                <CircularProgress
+                  size={16}
+                  color="inherit"
+                />
+              ) : undefined
+            }
+            sx={{
+              borderRadius: 2,
+              px: 2.5,
+            }}
+          >
+            {busy ? 'Please wait...' : confirmLabel}
           </Button>
         </DialogActions>
       </form>
@@ -75,18 +328,33 @@ export function NameDialog({ title, label, initialValue = '', confirmLabel, onSu
   );
 }
 
+// --------------------------------------------------
+// Confirm Delete Dialog
+// --------------------------------------------------
+
 interface ConfirmDeleteDialogProps {
   item: DriveItem;
   onConfirm: () => Promise<unknown>;
   onClose: () => void;
 }
 
-export function ConfirmDeleteDialog({ item, onConfirm, onClose }: ConfirmDeleteDialogProps) {
+export function ConfirmDeleteDialog({
+  item,
+  onConfirm,
+  onClose,
+}: Readonly<ConfirmDeleteDialogProps>) {
   const [busy, setBusy] = useState(false);
-  const name = item.kind === 'folder' ? item.data.name : item.data.fileName;
+
+  const name =
+    item.kind === 'folder'
+      ? item.data.name
+      : item.data.fileName;
 
   const confirm = async () => {
+    if (busy) return;
+
     setBusy(true);
+
     try {
       await onConfirm();
       onClose();
@@ -96,24 +364,99 @@ export function ConfirmDeleteDialog({ item, onConfirm, onClose }: ConfirmDeleteD
   };
 
   return (
-    <Dialog open onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Delete "{name}"?</DialogTitle>
+    <Dialog
+      open
+      onClose={busy ? undefined : onClose}
+      fullWidth
+      maxWidth="xs"
+      sx={dialogSx}
+    >
+      <DialogTitle sx={titleSx}>
+        Delete item?
+
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            mt: 0.5,
+            fontWeight: 400,
+          }}
+        >
+          Are you sure you want to delete this item?
+        </Typography>
+      </DialogTitle>
+
       <DialogContent>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            p: 2,
+            borderRadius: 2,
+            bgcolor: 'action.hover',
+            mb: 2,
+            minWidth: 0,
+          }}
+        >
+          <MdFolder
+            size={28}
+            color="#F9A825"
+          />
+
+          <Typography
+            fontWeight={600}
+            noWrap
+          >
+            {name}
+          </Typography>
+        </Box>
+
         <DialogContentText>
           {item.kind === 'folder'
-            ? 'The folder and everything inside it will be removed.'
-            : 'The file will be removed.'}
+            ? 'The folder and everything inside it will be permanently removed.'
+            : 'This file will be permanently removed.'}
         </DialogContentText>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button color="error" variant="contained" onClick={confirm} disabled={busy}>
-          Delete
+
+      <DialogActions sx={actionSx}>
+        <Button
+          color="inherit"
+          onClick={onClose}
+          disabled={busy}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          color="error"
+          variant="contained"
+          disableElevation
+          onClick={confirm}
+          disabled={busy}
+          startIcon={
+            busy ? (
+              <CircularProgress
+                size={16}
+                color="inherit"
+              />
+            ) : undefined
+          }
+          sx={{
+            borderRadius: 2,
+            px: 2.5,
+          }}
+        >
+          {busy ? 'Deleting...' : 'Delete'}
         </Button>
       </DialogActions>
     </Dialog>
   );
 }
+
+// --------------------------------------------------
+// Move Dialog
+// --------------------------------------------------
 
 interface MoveDialogProps {
   item: DriveItem;
@@ -121,20 +464,45 @@ interface MoveDialogProps {
   onClose: () => void;
 }
 
-/** Folder picker: browse into folders, then "Move here". Mount only while open. */
-export function MoveDialog({ item, onMove, onClose }: MoveDialogProps) {
-  const [browseId, setBrowseId] = useState<string | undefined>(undefined);
+export function MoveDialog({
+  item,
+  onMove,
+  onClose,
+}: Readonly<MoveDialogProps>) {
+  const [browseId, setBrowseId] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
-  const { data, isLoading } = useContents(browseId);
 
-  const currentParent = item.kind === 'folder' ? item.data.parentId : item.data.folderId;
-  const isCurrentLocation = (browseId ?? null) === currentParent;
-  const selectable = (data?.folders ?? []).filter((f) => !(item.kind === 'folder' && f.id === item.data.id));
-  // Moving a folder into itself is blocked server-side; also hide the path that would lead there.
-  const insideSelf = item.kind === 'folder' && (data?.breadcrumbs ?? []).some((f) => f.id === item.data.id);
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+  } = useContents(browseId);
+
+  const currentParent =
+    item.kind === 'folder'
+      ? item.data.parentId
+      : item.data.folderId;
+
+  const isCurrentLocation =
+    (browseId ?? null) === currentParent;
+
+  const selectable = (data?.folders ?? []).filter(
+    (folder) =>
+      !(item.kind === 'folder' && folder.id === item.data.id),
+  );
+
+  const insideSelf =
+    item.kind === 'folder' &&
+    (data?.breadcrumbs ?? []).some(
+      (folder) => folder.id === item.data.id,
+    );
 
   const move = async () => {
+    if (busy || isCurrentLocation || insideSelf) return;
+
     setBusy(true);
+
     try {
       await onMove(browseId ?? null);
       onClose();
@@ -144,53 +512,231 @@ export function MoveDialog({ item, onMove, onClose }: MoveDialogProps) {
   };
 
   return (
-    <Dialog open onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Move to…</DialogTitle>
-      <DialogContent dividers sx={{ minHeight: 280 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+    <Dialog
+      open
+      onClose={busy ? undefined : onClose}
+      fullWidth
+      maxWidth="sm"
+      sx={dialogSx}
+    >
+      <DialogTitle sx={titleSx}>
+        Move to folder
+
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            mt: 0.5,
+            fontWeight: 400,
+          }}
+        >
+          Select the destination for this item.
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent dividers>
+        {/* Breadcrumb navigation */}
+
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1}
+          sx={{
+            p: 1,
+            borderRadius: 2,
+            bgcolor: 'action.hover',
+            mb: 2,
+            minWidth: 0,
+          }}
+        >
           <IconButton
             size="small"
-            disabled={!browseId}
-            onClick={() => setBrowseId(data?.folder?.parentId ?? undefined)}
-            aria-label="Up one level"
+            disabled={!browseId || busy || isLoading}
+            onClick={() =>
+              setBrowseId(
+                data?.folder?.parentId ?? undefined,
+              )
+            }
+            aria-label="Go to parent folder"
           >
             <MdArrowUpward />
           </IconButton>
-          <Breadcrumbs maxItems={3}>
-            <Typography variant="body2">My files</Typography>
-            {(data?.breadcrumbs ?? []).map((f) => (
-              <Typography key={f.id} variant="body2">
-                {f.name}
+
+          <Breadcrumbs
+            maxItems={3}
+            sx={{ minWidth: 0 }}
+          >
+            <Typography
+              variant="body2"
+              fontWeight={500}
+            >
+              My files
+            </Typography>
+
+            {(data?.breadcrumbs ?? []).map((folder) => (
+              <Typography
+                key={folder.id}
+                variant="body2"
+                noWrap
+              >
+                {folder.name}
               </Typography>
             ))}
           </Breadcrumbs>
-        </Box>
+        </Stack>
+
+        {/* Loading */}
 
         {isLoading ? (
-          <Box sx={{ textAlign: 'center', mt: 4 }}>
-            <CircularProgress size={24} />
+          <Box
+            sx={{
+              textAlign: 'center',
+              py: 5,
+            }}
+          >
+            <CircularProgress size={28} />
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mt: 1 }}
+            >
+              Loading folders...
+            </Typography>
+          </Box>
+        ) : error ? (
+          <Box sx={{ py: 2 }}>
+            <Alert
+              severity="error"
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => void refetch()}
+                >
+                  Retry
+                </Button>
+              }
+            >
+              Unable to load folders.
+            </Alert>
           </Box>
         ) : selectable.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            No subfolders here.
-          </Typography>
+          <Box
+            sx={{
+              textAlign: 'center',
+              py: 5,
+            }}
+          >
+            <MdFolder
+              size={42}
+              color="#9E9E9E"
+            />
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mt: 1 }}
+            >
+              No subfolders here.
+            </Typography>
+          </Box>
         ) : (
-          <List dense>
-            {selectable.map((f) => (
-              <ListItemButton key={f.id} onClick={() => setBrowseId(f.id)}>
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  <MdFolder size={22} color="#f0b429" />
+          <List
+            dense
+            sx={{
+              maxHeight: 300,
+              overflowY: 'auto',
+            }}
+          >
+            {selectable.map((folder) => (
+              <ListItemButton
+                key={folder.id}
+                disabled={busy}
+                onClick={() => setBrowseId(folder.id)}
+                sx={{
+                  borderRadius: 2,
+                  mb: 0.5,
+                }}
+              >
+                <ListItemIcon
+                  sx={{ minWidth: 40 }}
+                >
+                  <MdFolder
+                    size={24}
+                    color="#F9A825"
+                  />
                 </ListItemIcon>
-                <ListItemText primary={f.name} />
+
+                <ListItemText
+                  primary={folder.name}
+                  slotProps={{
+                    primary: {
+                      fontWeight: 500,
+                      noWrap: true,
+                    },
+                  }}
+                />
               </ListItemButton>
             ))}
           </List>
         )}
+
+        {/* Validation messages */}
+
+        {isCurrentLocation && (
+          <Alert
+            severity="info"
+            sx={{ mt: 2 }}
+          >
+            This item is already in this location.
+          </Alert>
+        )}
+
+        {insideSelf && (
+          <Alert
+            severity="warning"
+            sx={{ mt: 2 }}
+          >
+            A folder cannot be moved inside itself.
+          </Alert>
+        )}
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={move} disabled={busy || isCurrentLocation || insideSelf}>
-          Move here
+
+      <DialogActions sx={actionSx}>
+        <Button
+          color="inherit"
+          onClick={onClose}
+          disabled={busy}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          variant="contained"
+          disableElevation
+          onClick={move}
+          disabled={
+            busy ||
+            isCurrentLocation ||
+            insideSelf ||
+            isLoading ||
+            !!error
+          }
+          startIcon={
+            busy ? (
+              <CircularProgress
+                size={16}
+                color="inherit"
+              />
+            ) : undefined
+          }
+          sx={{
+            borderRadius: 2,
+            px: 2.5,
+          }}
+        >
+          {busy ? 'Moving...' : 'Move here'}
         </Button>
       </DialogActions>
     </Dialog>
