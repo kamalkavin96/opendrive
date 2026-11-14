@@ -1,9 +1,16 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import {
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent as ReactDragEvent,
+} from 'react';
 
 import {
   Link as RouterLink,
   useParams,
 } from 'react-router-dom';
+
+import type { DropEvent } from 'react-dropzone';
 
 import { useDropzone } from 'react-dropzone';
 
@@ -46,6 +53,147 @@ import {
 } from '../hooks/useDrive';
 
 // --------------------------------------------------
+// Drag and drop directory helpers
+// --------------------------------------------------
+
+/**
+ * Read a dropped file and attach its relative path.
+ */
+function readFileEntry(
+  entry: FileSystemFileEntry,
+  parentPath: string,
+): Promise<File> {
+
+  return new Promise((resolve, reject) => {
+    entry.file(
+      (file) => {
+        const relativePath = [
+          parentPath,
+          entry.name,
+        ].filter(Boolean).join('/');
+
+        Object.defineProperty(file, 'webkitRelativePath', {
+          value: relativePath,
+          configurable: true,
+        });
+
+        resolve(file);
+      },
+      reject,
+    );
+  });
+}
+
+/**
+ * Read all entries from a directory.
+ *
+ * Chrome can return directory entries in batches,
+ * so continue reading until an empty batch is returned.
+ */
+function readDirectoryEntries(
+  directoryReader: FileSystemDirectoryReader,
+): Promise<FileSystemEntry[]> {
+
+  return new Promise((resolve, reject) => {
+
+    const entries: FileSystemEntry[] = [];
+
+    const readNextBatch = () => {
+
+      directoryReader.readEntries(
+        (batch) => {
+
+          if (batch.length === 0) {
+            resolve(entries);
+            return;
+          }
+
+          entries.push(...batch);
+
+          readNextBatch();
+        },
+        reject,
+      );
+    };
+
+    readNextBatch();
+  });
+}
+
+/**
+ * Recursively traverse files and directories.
+ */
+async function readDroppedEntry(
+  entry: FileSystemEntry,
+  parentPath = '',
+): Promise<File[]> {
+
+  const currentPath = [
+    parentPath,
+    entry.name,
+  ].filter(Boolean).join('/');
+
+  // File entry
+  if (entry.isFile) {
+    return readFileEntry(
+      entry as FileSystemFileEntry,
+      parentPath,
+    ).then((file) => [file]);
+  }
+
+  // Directory entry
+  if (entry.isDirectory) {
+
+    const directoryEntry = entry as FileSystemDirectoryEntry;
+
+    const reader = directoryEntry.createReader();
+
+    const children = await readDirectoryEntries(reader);
+
+    const nestedFiles = await Promise.all(
+      children.map((child) =>
+        readDroppedEntry(child, currentPath),
+      ),
+    );
+
+    return nestedFiles.flat();
+  }
+
+  return [];
+}
+
+/**
+ * Check whether the drag operation contains directories.
+ * If directories exist, recursively collect all files.
+ */
+async function getDroppedDirectoryFiles(
+  entries: FileSystemEntry[],
+): Promise<{
+  containsDirectory: boolean;
+  files: File[];
+}> {
+  const containsDirectory = entries.some(
+    (entry) => entry.isDirectory,
+  );
+
+  if (!containsDirectory) {
+    return {
+      containsDirectory: false,
+      files: [],
+    };
+  }
+
+  const results = await Promise.all(
+    entries.map((entry) => readDroppedEntry(entry)),
+  );
+
+  return {
+    containsDirectory: true,
+    files: results.flat(),
+  };
+}
+
+// --------------------------------------------------
 // Breadcrumb styles
 // --------------------------------------------------
 
@@ -62,6 +210,7 @@ const crumbSx = {
 function PathBreadcrumbs({
   crumbs,
 }: Readonly<{ crumbs: FolderResponse[] }>) {
+
   return (
     <Breadcrumbs
       maxItems={4}
@@ -131,6 +280,7 @@ function PathBreadcrumbs({
 // --------------------------------------------------
 
 function ListSkeleton() {
+
   return (
     <Stack
       spacing={0.5}
@@ -153,6 +303,7 @@ function ListSkeleton() {
 // --------------------------------------------------
 
 function DropOverlay() {
+
   return (
     <Box
       sx={(theme) => ({
@@ -177,7 +328,7 @@ function DropOverlay() {
       <MdCloudUpload size={48} />
 
       <Typography variant="h6">
-        Drop files to upload
+        Drop files or folders to upload
       </Typography>
 
       <Typography
@@ -195,6 +346,7 @@ function DropOverlay() {
 // --------------------------------------------------
 
 export default function ExplorerPage() {
+
   const { folderId } = useParams();
 
   // Folder and file contents
@@ -223,27 +375,140 @@ export default function ExplorerPage() {
 
   // Folder confirmation state
   const [folderConfirmOpen, setFolderConfirmOpen] = useState(false);
-  const [selectedFolderFiles, setSelectedFolderFiles] = useState<File[]>([]);
-  const [selectedFolderName, setSelectedFolderName] = useState('');
+
+  const [selectedFolderFiles, setSelectedFolderFiles] =
+    useState<File[]>([]);
+
+  const [selectedFolderName, setSelectedFolderName] =
+    useState('');
+
+  const droppedEntriesRef = useRef<FileSystemEntry[]>([]);
+
+  // ------------------------------------------------
+  // Prepare folder upload confirmation
+  // ------------------------------------------------
+
+  const prepareFolderUpload = (files: File[]) => {
+
+    if (files.length === 0) {
+      return;
+    }
+
+    const firstPath = (
+      files[0] as File & {
+        webkitRelativePath?: string;
+      }
+    ).webkitRelativePath;
+
+    const rootFolders = new Set(
+      files.map((file) => {
+        const relativePath = (
+          file as File & {
+            webkitRelativePath?: string;
+          }
+        ).webkitRelativePath;
+
+        return relativePath
+          ? relativePath.split('/')[0]
+          : file.name;
+      }),
+    );
+
+    const folderName =
+      rootFolders.size === 1
+        ? (firstPath?.split('/')[0] ?? 'Selected folder')
+        : `${rootFolders.size} dropped items`;
+
+    setSelectedFolderFiles(files);
+    setSelectedFolderName(folderName);
+    setFolderUploadError('');
+    setFolderConfirmOpen(true);
+  };
+
+  const handleDropCapture = (
+  event: ReactDragEvent<HTMLDivElement>,
+) => {
+  const items = Array.from(event.dataTransfer.items);
+
+  droppedEntriesRef.current = items
+    .map((item) => {
+      const webkitItem = item as DataTransferItem & {
+        webkitGetAsEntry?: () => FileSystemEntry | null;
+      };
+
+      return webkitItem.webkitGetAsEntry?.() ?? null;
+    })
+    .filter(
+      (entry): entry is FileSystemEntry => entry !== null,
+    );
+
+  console.log(
+    'Captured dropped entries:',
+    droppedEntriesRef.current.map((entry) => ({
+      name: entry.name,
+      isFile: entry.isFile,
+      isDirectory: entry.isDirectory,
+    })),
+  );
+};
+
+  // ------------------------------------------------
+  // Drag and drop handler
+  // ------------------------------------------------
+
+ const handleDrop = async (
+  acceptedFiles: File[],
+  _event: DropEvent,
+) => {
+  try {
+    // Use entries captured synchronously during drop.
+    const entries = droppedEntriesRef.current;
+
+    // Clear the ref for the next drop operation.
+    droppedEntriesRef.current = [];
+
+    console.log('Accepted files:', acceptedFiles);
+    console.log('Captured entries:', entries);
+
+    const directoryResult =
+      await getDroppedDirectoryFiles(entries);
+
+    if (directoryResult.containsDirectory) {
+      console.log(
+        'Directory detected:',
+        directoryResult.files,
+      );
+
+      prepareFolderUpload(directoryResult.files);
+      return;
+    }
+
+    // Normal file upload.
+    if (acceptedFiles.length > 0) {
+      void upload(acceptedFiles);
+    }
+  } catch (error) {
+    console.error('Drag and drop failed:', error);
+    setFolderUploadError(errorMessage(error));
+  }
+};
 
   // ------------------------------------------------
   // Drag and drop configuration
   // ------------------------------------------------
 
-  const {
-    getRootProps,
-    getInputProps,
-    isDragActive,
-    open,
-  } = useDropzone({
-    onDrop: (files) => {
-      if (files.length > 0) {
-        void upload(files);
-      }
-    },
-    noClick: true,
-    noKeyboard: true,
-  });
+const {
+  getRootProps,
+  getInputProps,
+  isDragActive,
+  open,
+} = useDropzone({
+  onDrop: (acceptedFiles, _fileRejections, event) => {
+    void handleDrop(acceptedFiles, event);
+  },
+  noClick: true,
+  noKeyboard: true,
+});
 
   // ------------------------------------------------
   // Upload folder - open picker
@@ -260,24 +525,14 @@ export default function ExplorerPage() {
   const handleFolderSelect = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
+
     const files = Array.from(event.target.files ?? []);
 
     if (files.length === 0) {
       return;
     }
 
-    const firstPath = (
-      files[0] as File & { webkitRelativePath?: string }
-    ).webkitRelativePath;
-
-    const folderName = firstPath
-      ? firstPath.split('/')[0]
-      : 'Selected folder';
-
-    setSelectedFolderFiles(files);
-    setSelectedFolderName(folderName);
-    setFolderUploadError('');
-    setFolderConfirmOpen(true);
+    prepareFolderUpload(files);
 
     // Allow selecting the same folder again.
     event.target.value = '';
@@ -288,7 +543,9 @@ export default function ExplorerPage() {
   // ------------------------------------------------
 
   const handleConfirmFolderUpload = async () => {
+
     try {
+
       setFolderUploading(true);
       setFolderUploadError('');
 
@@ -306,6 +563,7 @@ export default function ExplorerPage() {
       setSelectedFolderName('');
 
     } catch (error) {
+
       console.error('Folder upload failed:', error);
 
       setFolderUploadError(errorMessage(error));
@@ -313,6 +571,7 @@ export default function ExplorerPage() {
       throw error;
 
     } finally {
+
       setFolderUploading(false);
     }
   };
@@ -323,13 +582,16 @@ export default function ExplorerPage() {
 
   return (
     <Box
-      {...getRootProps()}
+      {...getRootProps({
+        onDropCapture: handleDropCapture,
+      })}
       sx={{
         minHeight: 'calc(100vh - 120px)',
         position: 'relative',
         outline: 'none',
       }}
     >
+
       {/* Hidden file input */}
       <input {...getInputProps()} />
 
@@ -353,8 +615,7 @@ export default function ExplorerPage() {
         justifyContent="space-between"
         spacing={2}
         sx={{
-          mb: 2.5,
-          minHeight: 40,
+          my: 1,
         }}
       >
         <PathBreadcrumbs
@@ -408,7 +669,7 @@ export default function ExplorerPage() {
         <ItemTable
           folders={data.folders}
           files={data.files}
-          emptyText="This folder is empty. Drag files here or use New."
+          emptyText="This folder is empty. Drag files or folder here or use New."
         />
       )}
 
@@ -446,6 +707,7 @@ export default function ExplorerPage() {
           }}
         />
       )}
+
     </Box>
   );
 }

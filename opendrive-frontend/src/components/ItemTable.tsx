@@ -78,7 +78,7 @@ const headerCellSx = {
   color: 'text.secondary',
   fontSize: 14.5,
   fontWeight: 800,
-  py: 2,
+  py: 1,
 } as const;
 
 const hideOnMobile = {
@@ -122,11 +122,7 @@ interface RowProps {
   ) => void;
 }
 
-function ItemRow({
-  item,
-  menuOpen,
-  onOpenMenu,
-}: Readonly<RowProps>) {
+function ItemRow({ item, menuOpen, onOpenMenu, }: Readonly<RowProps>) {
   const navigate = useNavigate();
 
   const isFolder = item.kind === 'folder';
@@ -491,7 +487,7 @@ export default function ItemTable({
     name: string,
     color?: string,
   ) => {
-    if (!action || action.type !== 'rename') {
+    if (action?.type !== 'rename') {
       return Promise.resolve();
     }
 
