@@ -8,7 +8,7 @@ export const foldersApi = {
       .then((r) => r.data),
 
   create: (name: string, parentId?: string, color?: string,) =>
-    http.post<FolderResponse>('/folders', { name, parentId: parentId ?? null , color: color ?? null,}).then((r) => r.data),
+    http.post<FolderResponse>('/folders', { name, parentId: parentId ?? null, color: color ?? null, }).then((r) => r.data),
 
   rename: (id: string, name: string, color?: string) =>
     http.put(`/folders/${id}/rename`, { name, color }).then(() => undefined),
@@ -47,4 +47,29 @@ export const filesApi = {
   remove: (id: string) => http.delete(`/files/${id}`).then(() => undefined),
 
   downloadUrl: (id: string) => `${API_BASE}/files/${id}/download`,
+
+  uploadFolder: (files: File[], targetFolderId?: string,) => {
+    const formData = new FormData();
+
+    files.forEach((file) => {
+      const relativePath = (
+        file as File & { webkitRelativePath?: string }
+      ).webkitRelativePath;
+
+      formData.append('files', file, file.name);
+      formData.append('paths', relativePath || file.name);
+    });
+
+    if (targetFolderId) {
+      formData.append('targetFolderId', targetFolderId);
+    }
+
+    return http.post<{
+      totalFiles: number;
+      uploadedFiles: number;
+      createdFolders: number;
+      files: FileResponse[];
+    }>('/files/upload-folder', formData)
+      .then(response => response.data);
+  },
 };

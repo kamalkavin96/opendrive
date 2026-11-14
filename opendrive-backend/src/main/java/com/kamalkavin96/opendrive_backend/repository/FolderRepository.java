@@ -7,8 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface FolderRepository
-        extends JpaRepository<Folder, UUID> {
+public interface FolderRepository extends JpaRepository<Folder, UUID> {
 
     List<Folder> findByParent_IdAndDeletedFalse(UUID parentId);
 
@@ -16,10 +15,7 @@ public interface FolderRepository
 
     Optional<Folder> findByIdAndDeletedFalse(UUID id);
 
-    boolean existsByNameAndParent_IdAndDeletedFalse(
-            String name,
-            UUID parentId
-    );
+    boolean existsByNameAndParent_IdAndDeletedFalse(String name, UUID parentId);
 
     boolean existsByNameAndParentIsNullAndDeletedFalse(String name);
 }

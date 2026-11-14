@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 
 import {
   Link as RouterLink,
@@ -20,6 +20,8 @@ import {
 
 import { alpha } from '@mui/material/styles';
 
+import { filesApi } from '../api/driveApi';
+
 import {
   MdChevronRight,
   MdCloudUpload,
@@ -27,7 +29,11 @@ import {
 
 import ExplorerActions from '../components/ExplorerActions';
 import ItemTable from '../components/ItemTable';
-import { NameDialog } from '../components/Dialogs';
+
+import {
+  NameDialog,
+  FolderUploadConfirmDialog,
+} from '../components/Dialogs';
 
 import { errorMessage } from '../api/client';
 
@@ -202,11 +208,23 @@ export default function ExplorerPage() {
   // Drive mutations
   const { createFolder } = useDriveMutations();
 
-  // File uploader
+  // Normal file uploader
   const upload = useUploader(folderId);
 
   // Dialog state
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+
+  // Folder input reference
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // Folder upload state
+  const [folderUploading, setFolderUploading] = useState(false);
+  const [folderUploadError, setFolderUploadError] = useState('');
+
+  // Folder confirmation state
+  const [folderConfirmOpen, setFolderConfirmOpen] = useState(false);
+  const [selectedFolderFiles, setSelectedFolderFiles] = useState<File[]>([]);
+  const [selectedFolderName, setSelectedFolderName] = useState('');
 
   // ------------------------------------------------
   // Drag and drop configuration
@@ -228,19 +246,76 @@ export default function ExplorerPage() {
   });
 
   // ------------------------------------------------
-  // Create folder
+  // Upload folder - open picker
   // ------------------------------------------------
 
-  // const handleCreateFolder = async (
-  //   name: string,
-  //   color?: string,
-  // ) => {
-  //   await createFolder.mutateAsync({
-  //     name,
-  //     parentId: folderId,
-  //     color,
-  //   });
-  // };
+  const handleUploadFolder = () => {
+    folderInputRef.current?.click();
+  };
+
+  // ------------------------------------------------
+  // Upload folder - selection
+  // ------------------------------------------------
+
+  const handleFolderSelect = (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(event.target.files ?? []);
+
+    if (files.length === 0) {
+      return;
+    }
+
+    const firstPath = (
+      files[0] as File & { webkitRelativePath?: string }
+    ).webkitRelativePath;
+
+    const folderName = firstPath
+      ? firstPath.split('/')[0]
+      : 'Selected folder';
+
+    setSelectedFolderFiles(files);
+    setSelectedFolderName(folderName);
+    setFolderUploadError('');
+    setFolderConfirmOpen(true);
+
+    // Allow selecting the same folder again.
+    event.target.value = '';
+  };
+
+  // ------------------------------------------------
+  // Upload folder - confirmation
+  // ------------------------------------------------
+
+  const handleConfirmFolderUpload = async () => {
+    try {
+      setFolderUploading(true);
+      setFolderUploadError('');
+
+      const response = await filesApi.uploadFolder(
+        selectedFolderFiles,
+        folderId,
+      );
+
+      console.log('Folder upload completed:', response);
+
+      // Refresh current folder contents.
+      await refetch();
+
+      setSelectedFolderFiles([]);
+      setSelectedFolderName('');
+
+    } catch (error) {
+      console.error('Folder upload failed:', error);
+
+      setFolderUploadError(errorMessage(error));
+
+      throw error;
+
+    } finally {
+      setFolderUploading(false);
+    }
+  };
 
   // ------------------------------------------------
   // Render
@@ -258,10 +333,20 @@ export default function ExplorerPage() {
       {/* Hidden file input */}
       <input {...getInputProps()} />
 
-      {/* ------------------------------------------ */}
-      {/* Explorer toolbar */}
-      {/* ------------------------------------------ */}
+      {/* Hidden folder input */}
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        onChange={handleFolderSelect}
+        style={{ display: 'none' }}
+        {...({
+          webkitdirectory: '',
+          directory: '',
+        } as object)}
+      />
 
+      {/* Explorer toolbar */}
       <Stack
         direction="row"
         alignItems="center"
@@ -279,19 +364,27 @@ export default function ExplorerPage() {
         <ExplorerActions
           onNewFolder={() => setNewFolderOpen(true)}
           onUpload={open}
+          onUploadFolder={handleUploadFolder}
         />
       </Stack>
 
-      {/* ------------------------------------------ */}
-      {/* Loading state */}
-      {/* ------------------------------------------ */}
+      {/* Folder upload status */}
+      {folderUploading && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Uploading folder and preserving directory structure...
+        </Alert>
+      )}
 
+      {folderUploadError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {folderUploadError}
+        </Alert>
+      )}
+
+      {/* Loading state */}
       {isLoading && <ListSkeleton />}
 
-      {/* ------------------------------------------ */}
       {/* Error state */}
-      {/* ------------------------------------------ */}
-
       {error && (
         <Alert
           severity="error"
@@ -310,28 +403,19 @@ export default function ExplorerPage() {
         </Alert>
       )}
 
-      {/* ------------------------------------------ */}
       {/* Folder and file listing */}
-      {/* ------------------------------------------ */}
-
       {data && (
         <ItemTable
           folders={data.folders}
           files={data.files}
-          emptyText="This folder is empty. Drag files here or use Upload."
+          emptyText="This folder is empty. Drag files here or use New."
         />
       )}
 
-      {/* ------------------------------------------ */}
       {/* Drag overlay */}
-      {/* ------------------------------------------ */}
-
       {isDragActive && <DropOverlay />}
 
-      {/* ------------------------------------------ */}
       {/* New folder dialog */}
-      {/* ------------------------------------------ */}
-
       {newFolderOpen && (
         <NameDialog
           title="Create new folder"
@@ -349,7 +433,19 @@ export default function ExplorerPage() {
         />
       )}
 
-
+      {/* Folder upload confirmation dialog */}
+      {folderConfirmOpen && (
+        <FolderUploadConfirmDialog
+          folderName={selectedFolderName}
+          files={selectedFolderFiles}
+          onConfirm={handleConfirmFolderUpload}
+          onClose={() => {
+            setFolderConfirmOpen(false);
+            setSelectedFolderFiles([]);
+            setSelectedFolderName('');
+          }}
+        />
+      )}
     </Box>
   );
 }

@@ -180,4 +180,28 @@ public class FolderService {
 
         return color.toUpperCase();
     }
+
+    @Transactional
+    public Folder createFolderForUpload(String folderName, UUID parentId, String color) {
+
+        // Validate folder name using existing validation
+        String name = NameValidator.validate(folderName, "Folder name");
+
+        // Resolve parent folder
+        Folder parent = parentId == null ? null : findActive(parentId);
+
+        // Check duplicate folder name within the same parent
+        assertNameAvailable(name, parent == null ? null : parent.getId());
+
+        // Create folder
+        Folder folder = new Folder();
+        folder.setName(name);
+        folder.setParent(parent);
+
+        if (color != null && !color.isBlank()) {
+            folder.setColor(validateColor(color));
+        }
+
+        return folderRepository.save(folder);
+    }
 }

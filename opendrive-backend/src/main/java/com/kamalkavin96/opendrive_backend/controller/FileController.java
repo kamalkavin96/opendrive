@@ -3,8 +3,11 @@ package com.kamalkavin96.opendrive_backend.controller;
 import com.kamalkavin96.opendrive_backend.dto.request.MoveRequest;
 import com.kamalkavin96.opendrive_backend.dto.request.RenameRequest;
 import com.kamalkavin96.opendrive_backend.dto.response.FileResponse;
+import com.kamalkavin96.opendrive_backend.dto.response.FolderUploadResponse;
 import com.kamalkavin96.opendrive_backend.service.FileService;
+import com.kamalkavin96.opendrive_backend.service.FolderUploadService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -22,19 +25,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/files")
+@RequiredArgsConstructor
 public class FileController {
 
     private final FileService fileService;
-
-    public FileController(FileService fileService) {
-        this.fileService = fileService;
-    }
+    private final FolderUploadService folderUploadService;
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<FileResponse> upload(
@@ -102,5 +104,25 @@ public class FileController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         fileService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(
+            value = "/upload-folder",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ResponseEntity<FolderUploadResponse> uploadFolder(
+            @RequestParam("files") List<MultipartFile> files,
+            @RequestParam("paths") List<String> paths,
+            @RequestParam(value = "targetFolderId", required = false)
+            UUID targetFolderId
+    ) throws IOException {
+
+        FolderUploadResponse response = folderUploadService.uploadFolder(
+                files,
+                paths,
+                targetFolderId
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

@@ -26,6 +26,7 @@ import {
   MdArrowUpward,
   MdCheck,
   MdFolder,
+  MdInsertDriveFile,
 } from 'react-icons/md';
 
 import type { DriveItem } from '../api/types';
@@ -737,6 +738,264 @@ export function MoveDialog({
           }}
         >
           {busy ? 'Moving...' : 'Move here'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// --------------------------------------------------
+// Folder Upload Confirmation Dialog
+// --------------------------------------------------
+
+interface FolderUploadConfirmDialogProps {
+  folderName: string;
+  files: File[];
+  onConfirm: () => Promise<unknown>;
+  onClose: () => void;
+}
+
+interface FolderTreeNode {
+  name: string;
+  type: 'folder' | 'file';
+  children: Map<string, FolderTreeNode>;
+}
+
+function buildFolderTree(files: File[]): FolderTreeNode {
+  const root: FolderTreeNode = {
+    name: 'root',
+    type: 'folder',
+    children: new Map(),
+  };
+
+  files.forEach((file) => {
+    const relativePath = (
+      file as File & { webkitRelativePath?: string }
+    ).webkitRelativePath || file.name;
+
+    const segments = relativePath.split('/').filter(Boolean);
+
+    let current = root;
+
+    segments.forEach((segment, index) => {
+      const isFile = index === segments.length - 1;
+
+      if (!current.children.has(segment)) {
+        current.children.set(segment, {
+          name: segment,
+          type: isFile ? 'file' : 'folder',
+          children: new Map(),
+        });
+      }
+
+      const node = current.children.get(segment)!;
+
+      if (!isFile) {
+        current = node;
+      }
+    });
+  });
+
+  return root;
+}
+
+export function FolderUploadConfirmDialog({
+  folderName,
+  files,
+  onConfirm,
+  onClose,
+}: Readonly<FolderUploadConfirmDialogProps>) {
+
+  const [busy, setBusy] = useState(false);
+
+  const tree = buildFolderTree(files);
+
+  const renderTree = (
+    node: FolderTreeNode,
+    depth = 0,
+  ): React.ReactNode => {
+
+    const children = Array.from(node.children.values())
+      .sort((a, b) => {
+        if (a.type !== b.type) {
+          return a.type === 'folder' ? -1 : 1;
+        }
+
+        return a.name.localeCompare(b.name);
+      });
+
+    return children.map((child) => (
+      <Box key={`${depth}-${child.name}`}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1}
+          sx={{
+            py: 0.65,
+            pl: depth * 2,
+            minWidth: 0,
+          }}
+        >
+          {child.type === 'folder' ? (
+            <MdFolder
+              size={20}
+              color={DEFAULT_FOLDER_COLOR}
+            />
+          ) : (
+            <MdInsertDriveFile
+              size={18}
+              color="#78909C"
+            />
+          )}
+
+          <Typography
+            variant="body2"
+            noWrap
+            sx={{
+              fontWeight: child.type === 'folder' ? 600 : 400,
+              minWidth: 0,
+            }}
+          >
+            {child.name}
+          </Typography>
+        </Stack>
+
+        {child.type === 'folder' && renderTree(child, depth + 1)}
+      </Box>
+    ));
+  };
+
+  const confirm = async () => {
+    if (busy) return;
+
+    setBusy(true);
+
+    try {
+      await onConfirm();
+      onClose();
+    } catch {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open
+      onClose={busy ? undefined : onClose}
+      fullWidth
+      maxWidth="sm"
+      sx={dialogSx}
+    >
+      <DialogTitle sx={titleSx}>
+        Upload folder?
+
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            mt: 0.5,
+            fontWeight: 400,
+          }}
+        >
+          Review the folder structure before uploading.
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent>
+
+        {/* Folder information */}
+
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            p: 2,
+            borderRadius: 2,
+            bgcolor: 'action.hover',
+            mb: 2,
+          }}
+        >
+          <MdFolder
+            size={34}
+            color={DEFAULT_FOLDER_COLOR}
+          />
+
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              fontWeight={600}
+              noWrap
+            >
+              {folderName}
+            </Typography>
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+            >
+              {files.length} {files.length === 1 ? 'file' : 'files'} selected
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Folder tree */}
+
+        <Typography
+          fontWeight={600}
+          fontSize={14}
+          sx={{ mb: 1 }}
+        >
+          Folder structure
+        </Typography>
+
+        <Box
+          sx={{
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 2,
+            p: 1.5,
+            maxHeight: 300,
+            overflowY: 'auto',
+          }}
+        >
+          {renderTree(tree)}
+        </Box>
+
+        <DialogContentText sx={{ mt: 2 }}>
+          The folder hierarchy will be preserved when uploaded
+          to your current location.
+        </DialogContentText>
+
+      </DialogContent>
+
+      <DialogActions sx={actionSx}>
+        <Button
+          color="inherit"
+          onClick={onClose}
+          disabled={busy}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          variant="contained"
+          disableElevation
+          onClick={confirm}
+          disabled={busy || files.length === 0}
+          startIcon={
+            busy ? (
+              <CircularProgress
+                size={16}
+                color="inherit"
+              />
+            ) : undefined
+          }
+          sx={{
+            borderRadius: 2,
+            px: 2.5,
+          }}
+        >
+          {busy ? 'Uploading...' : 'Upload'}
         </Button>
       </DialogActions>
     </Dialog>
