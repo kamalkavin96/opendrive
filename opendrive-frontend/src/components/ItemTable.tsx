@@ -182,16 +182,13 @@ function ItemRow({
           }}
         >
           <FileIcon
+            kind={item.kind}
+            fileName={item.kind === 'file' ? item.data.fileName : undefined}
+            contentType={item.kind === 'file' ? item.data.contentType : null}
             color={
               item.kind === 'folder'
                 ? item.data.color ?? DEFAULT_FOLDER_COLOR
                 : undefined
-            }
-            kind={item.kind}
-            contentType={
-              item.kind === 'file'
-                ? item.data.contentType
-                : null
             }
             size={26}
           />
