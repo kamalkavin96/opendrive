@@ -1,0 +1,49 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: opendrive
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/opendrive}
+    username: ${DB_USERNAME:opendrive}
+    password: ${DB_PASSWORD:opendrive123}
+    driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update          # development only - see application-prod.yml
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: false              # development only - see application-prod.yml
+    locations: classpath:db/migration
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5GB
+      max-request-size: 5GB
+
+opendrive:
+  storage:
+    provider: ${OPENDRIVE_STORAGE_PROVIDER:local}
+    local:
+      path: ${OPENDRIVE_STORAGE_PATH:${user.home}/OpenDrive/data}
+    upload:
+      max-file-size: 5368709120
+      chunk-size: 10485760
+
+  cors:
+    allowed-origins: ${OPENDRIVE_CORS_ORIGINS:http://localhost:5173}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

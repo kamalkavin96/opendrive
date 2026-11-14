@@ -1,0 +1,50 @@
+import { API_BASE, http } from './client';
+import type { FileResponse, FolderContents, FolderResponse } from './types';
+
+export const foldersApi = {
+  contents: (folderId?: string) =>
+    http
+      .get<FolderContents>(folderId ? `/folders/${folderId}/contents` : '/folders/root/contents')
+      .then((r) => r.data),
+
+  create: (name: string, parentId?: string) =>
+    http.post<FolderResponse>('/folders', { name, parentId: parentId ?? null }).then((r) => r.data),
+
+  rename: (id: string, name: string) =>
+    http.put(`/folders/${id}/rename`, { name }).then(() => undefined),
+
+  move: (id: string, targetFolderId: string | null) =>
+    http.put(`/folders/${id}/move`, { targetFolderId }).then(() => undefined),
+
+  remove: (id: string) => http.delete(`/folders/${id}`).then(() => undefined),
+};
+
+export const filesApi = {
+  search: (name: string) =>
+    http.get<FileResponse[]>('/files/search', { params: { name } }).then((r) => r.data),
+
+  upload: (file: File, folderId: string | undefined, onProgress: (percent: number) => void) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (folderId) form.append('folderId', folderId);
+    return http
+      .post<FileResponse>('/files/upload', form, {
+        onUploadProgress: (e) => {
+          if (e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+        },
+      })
+      .then((r) => r.data);
+  },
+
+  rename: (id: string, name: string) =>
+    http.put(`/files/${id}/rename`, { name }).then(() => undefined),
+
+  move: (id: string, targetFolderId: string | null) =>
+    http.put(`/files/${id}/move`, { targetFolderId }).then(() => undefined),
+
+  copy: (id: string) => http.post(`/files/${id}/copy`).then(() => undefined),
+
+  remove: (id: string) => http.delete(`/files/${id}`).then(() => undefined),
+
+  downloadUrl: (id: string) => `${API_BASE}/files/${id}/download`,
+};

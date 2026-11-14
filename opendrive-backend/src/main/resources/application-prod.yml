@@ -1,0 +1,9 @@
+# Activate with: SPRING_PROFILES_ACTIVE=prod
+# Provide DB_URL, DB_USERNAME, DB_PASSWORD and OPENDRIVE_STORAGE_PATH via environment/secrets.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
