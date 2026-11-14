@@ -231,16 +231,16 @@ export default function ExplorerPage() {
   // Create folder
   // ------------------------------------------------
 
-  const handleCreateFolder = async (
-    name: string,
-    color?: string,
-  ) => {
-    await createFolder.mutateAsync({
-      name,
-      parentId: folderId,
-      color,
-    });
-  };
+  // const handleCreateFolder = async (
+  //   name: string,
+  //   color?: string,
+  // ) => {
+  //   await createFolder.mutateAsync({
+  //     name,
+  //     parentId: folderId,
+  //     color,
+  //   });
+  // };
 
   // ------------------------------------------------
   // Render
