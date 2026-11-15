@@ -9,7 +9,7 @@ export default function PdfPreview({ src }: Readonly<PreviewProps>) {
       title="PDF Preview"
       sx={{
         width: '100%',
-        height: '75vh',
+        height: '100%',
         border: 0,
         display: 'block',
         bgcolor: '#fff',

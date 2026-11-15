@@ -10,7 +10,7 @@ export default function ImagePreview({ file, src }: Readonly<PreviewProps>) {
       sx={{
         display: 'block',
         maxWidth: '100%',
-        maxHeight: '75vh',
+        maxHeight: '100%',
         objectFit: 'contain',
         mx: 'auto',
       }}

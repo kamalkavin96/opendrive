@@ -11,7 +11,7 @@ export default function VideoPreview({ src }: Readonly<PreviewProps>) {
       playsInline
       sx={{
         width: '100%',
-        maxHeight: '75vh',
+        maxHeight: '100%',
         outline: 'none',
       }}
     />

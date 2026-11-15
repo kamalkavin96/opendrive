@@ -4,51 +4,98 @@ import type { FileResponse, FolderContents, FolderResponse } from './types';
 export const foldersApi = {
   contents: (folderId?: string) =>
     http
-      .get<FolderContents>(folderId ? `/folders/${folderId}/contents` : '/folders/root/contents')
+      .get<FolderContents>(
+        folderId
+          ? `/folders/${folderId}/contents`
+          : '/folders/root/contents',
+      )
       .then((r) => r.data),
 
-  create: (name: string, parentId?: string, color?: string,) =>
-    http.post<FolderResponse>('/folders', { name, parentId: parentId ?? null, color: color ?? null, }).then((r) => r.data),
+  create: (name: string, parentId?: string, color?: string) =>
+    http
+      .post<FolderResponse>('/folders', {
+        name,
+        parentId: parentId ?? null,
+        color: color ?? null,
+      })
+      .then((r) => r.data),
 
   rename: (id: string, name: string, color?: string) =>
-    http.put(`/folders/${id}/rename`, { name, color }).then(() => undefined),
+    http.put(`/folders/${id}/rename`, { name, color })
+      .then(() => undefined),
 
   move: (id: string, targetFolderId: string | null) =>
-    http.put(`/folders/${id}/move`, { targetFolderId }).then(() => undefined),
+    http.put(`/folders/${id}/move`, { targetFolderId })
+      .then(() => undefined),
 
-  remove: (id: string) => http.delete(`/folders/${id}`).then(() => undefined),
+  remove: (id: string) =>
+    http.delete(`/folders/${id}`).then(() => undefined),
 };
 
 export const filesApi = {
   search: (name: string) =>
-    http.get<FileResponse[]>('/files/search', { params: { name } }).then((r) => r.data),
+    http
+      .get<FileResponse[]>('/files/search', { params: { name } })
+      .then((r) => r.data),
 
-  upload: (file: File, folderId: string | undefined, onProgress: (percent: number) => void) => {
+  upload: (
+    file: File,
+    folderId: string | undefined,
+    onProgress: (percent: number) => void,
+  ) => {
     const form = new FormData();
     form.append('file', file);
+
     if (folderId) form.append('folderId', folderId);
+
     return http
       .post<FileResponse>('/files/upload', form, {
         onUploadProgress: (e) => {
-          if (e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+          if (e.total) {
+            onProgress(Math.round((e.loaded / e.total) * 100));
+          }
         },
       })
       .then((r) => r.data);
   },
 
   rename: (id: string, name: string) =>
-    http.put(`/files/${id}/rename`, { name }).then(() => undefined),
+    http.put(`/files/${id}/rename`, { name })
+      .then(() => undefined),
 
   move: (id: string, targetFolderId: string | null) =>
-    http.put(`/files/${id}/move`, { targetFolderId }).then(() => undefined),
+    http.put(`/files/${id}/move`, { targetFolderId })
+      .then(() => undefined),
 
-  copy: (id: string) => http.post(`/files/${id}/copy`).then(() => undefined),
+  copy: (id: string) =>
+    http.post(`/files/${id}/copy`).then(() => undefined),
 
-  remove: (id: string) => http.delete(`/files/${id}`).then(() => undefined),
+  remove: (id: string) =>
+    http.delete(`/files/${id}`).then(() => undefined),
 
-  downloadUrl: (id: string) => `/files/${id}/download`,
+  // Browser navigation URL (includes API prefix)
+  downloadUrl: (id: string) =>`/files/${id}/download`,
 
-  uploadFolder: (files: File[], targetFolderId?: string,) => {
+  // Authenticated download through Axios
+  download: async (id: string) => {
+    const response = await http.get(
+      `/files/${id}/download`,
+      { responseType: 'blob' },
+    );
+
+    const blobUrl = URL.createObjectURL(response.data);
+
+    const anchor = document.createElement('a');
+    anchor.href = blobUrl;
+    anchor.download = 'download';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+
+    URL.revokeObjectURL(blobUrl);
+  },
+
+  uploadFolder: (files: File[], targetFolderId?: string) => {
     const formData = new FormData();
 
     files.forEach((file) => {
@@ -64,12 +111,13 @@ export const filesApi = {
       formData.append('targetFolderId', targetFolderId);
     }
 
-    return http.post<{
-      totalFiles: number;
-      uploadedFiles: number;
-      createdFolders: number;
-      files: FileResponse[];
-    }>('/files/upload-folder', formData)
-      .then(response => response.data);
+    return http
+      .post<{
+        totalFiles: number;
+        uploadedFiles: number;
+        createdFolders: number;
+        files: FileResponse[];
+      }>('/files/upload-folder', formData)
+      .then((response) => response.data);
   },
 };
