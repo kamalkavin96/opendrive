@@ -14,6 +14,7 @@ export type PreviewCategory =
   | 'text'
   | 'document'
   | 'spreadsheet'
+  | 'presentation'
   | 'unsupported';
 
 export interface PreviewDefinition {

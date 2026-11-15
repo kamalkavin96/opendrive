@@ -6,7 +6,8 @@ import PdfPreview from './renderers/PdfPreview';
 import AudioPreview from './renderers/AudioPreview';
 import UnsupportedPreview from './renderers/UnsupportedPreview';
 import ExcelPreview from './renderers/ExcelPreview';
-
+import PptxPreview from './renderers/PptxPreview';
+import DocxPreview from './renderers/DocxPreview';
 
 export const previewRegistry: PreviewDefinition[] = [
   {
@@ -46,12 +47,28 @@ export const previewRegistry: PreviewDefinition[] = [
     category: 'spreadsheet',
     extensions: ['xlsx', 'xls', 'csv'],
     mimeTypes: [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel',
-        'text/csv',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'text/csv',
     ],
     component: ExcelPreview,
-},
+  },
+  {
+    category: 'presentation',
+    extensions: ['pptx'],
+    mimeTypes: [
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ],
+    component: PptxPreview,
+  },
+  {
+    category: 'document',
+    extensions: ['docx'],
+    mimeTypes: [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ],
+    component: DocxPreview,
+  },
 ];
 
 export const unsupportedPreview: PreviewDefinition = {
