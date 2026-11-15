@@ -344,11 +344,20 @@ interface MenuProps {
   onCopy: (fileId: string) => void;
 }
 
+interface MenuProps {
+  menu: MenuState | null;
+  onClose: () => void;
+  onAction: (type: ActionType) => void;
+  onCopy: (fileId: string) => void;
+  onDownload: (file: FileResponse) => void;
+}
+
 function ItemMenu({
   menu,
   onClose,
   onAction,
   onCopy,
+  onDownload,
 }: Readonly<MenuProps>) {
   const item = menu?.item;
 
@@ -680,6 +689,9 @@ export default function ItemTable({
         onClose={closeMenu}
         onAction={startAction}
         onCopy={(fileId) => copyFile.mutate(fileId)}
+        onDownload={(file) =>
+          filesApi.download(file.id, file.fileName)
+        }
       />
 
       {/* File Preview Dialog */}

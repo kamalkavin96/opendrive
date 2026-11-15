@@ -3,17 +3,14 @@ import {
     AppBar,
     Box,
     CircularProgress,
+    Dialog,
     IconButton,
     Toolbar,
     Tooltip,
     Typography,
 } from '@mui/material';
 
-import {
-    MdClose,
-    MdDownload,
-    MdOpenInNew,
-} from 'react-icons/md';
+import { MdClose, MdDownload, MdOpenInNew } from 'react-icons/md';
 
 import type { FileResponse } from '../../api/types';
 import { filesApi } from '../../api/driveApi';
@@ -28,6 +25,16 @@ interface Props {
     onClose: () => void;
 }
 
+const actionButtonSx = {
+    color: '#ffffff',
+    '&:hover': {
+        bgcolor: 'rgba(255, 255, 255, 0.12)',
+    },
+    '&.Mui-disabled': {
+        color: 'rgba(255, 255, 255, 0.35)',
+    },
+};
+
 export default function FilePreviewDialog({
     file,
     previewUrl,
@@ -35,69 +42,61 @@ export default function FilePreviewDialog({
     error,
     onClose,
 }: Readonly<Props>) {
-
     if (!file) return null;
 
     const openInNewTab = () => {
         if (previewUrl) {
-            window.open(
-                previewUrl,
-                '_blank',
-                'noopener,noreferrer',
-            );
+            window.open(previewUrl, '_blank', 'noopener,noreferrer');
         }
     };
 
     return (
-        <Box
-            sx={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 1300,
-                width: '100vw',
-                height: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                bgcolor: '#f3f4f6',
+        <Dialog
+            fullScreen
+            open
+            onClose={onClose}
+            aria-label={`Preview of ${file.fileName}`}
+            slotProps={{
+                paper: {
+                    sx: {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden',
+                        bgcolor: 'rgba(0, 0, 0, 0.85)',
+                        backgroundImage: 'none',
+                    },
+                },
             }}
         >
-            {/* Compact toolbar */}
+            {/* Toolbar */}
             <AppBar
                 position="relative"
                 elevation={0}
-                color="inherit"
                 sx={{
                     flexShrink: 0,
-                    bgcolor: '#fff',
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
+                    bgcolor: 'rgba(15, 15, 15, 0.95)',
+                    color: '#ffffff',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
                 }}
             >
                 <Toolbar
                     disableGutters
                     sx={{
-                        minHeight: '48px !important',
-                        height: 48,
+                        minHeight: '52px !important',
+                        height: 52,
                         px: 2,
                         gap: 1,
                     }}
                 >
-                    {/* File name */}
                     <Typography
                         fontSize={14}
                         fontWeight={600}
-                        color="text.primary"
                         noWrap
-                        sx={{
-                            flex: 1,
-                            minWidth: 0,
-                        }}
+                        sx={{ flex: 1, minWidth: 0, color: '#ffffff' }}
                     >
                         {file.fileName}
                     </Typography>
 
-                    {/* Open in new tab */}
                     <Tooltip title="Open in new tab">
                         <span>
                             <IconButton
@@ -105,29 +104,38 @@ export default function FilePreviewDialog({
                                 onClick={openInNewTab}
                                 disabled={!previewUrl}
                                 aria-label="Open in new tab"
+                                sx={actionButtonSx}
                             >
                                 <MdOpenInNew size={20} />
                             </IconButton>
                         </span>
                     </Tooltip>
 
-                    {/* Download */}
                     <Tooltip title="Download">
-  <IconButton
-    size="small"
-    onClick={() => filesApi.download(file.id)}
-    aria-label="Download file"
-  >
-    <MdDownload size={20} />
-  </IconButton>
-</Tooltip>
+                        <IconButton
+                            size="small"
+                            component="a"
+                            href={filesApi.downloadUrl(file.id)}
+                            download={file.fileName}
+                            aria-label="Download file"
+                            sx={actionButtonSx}
+                        >
+                            <MdDownload size={20} />
+                        </IconButton>
+                    </Tooltip>
 
-                    {/* Close */}
                     <Tooltip title="Close preview">
                         <IconButton
                             size="small"
                             onClick={onClose}
                             aria-label="Close preview"
+                            sx={{
+                                ...actionButtonSx,
+                                '&:hover': {
+                                    bgcolor: 'rgba(255, 70, 70, 0.18)',
+                                    color: '#ff6b6b',
+                                },
+                            }}
                         >
                             <MdClose size={21} />
                         </IconButton>
@@ -135,23 +143,21 @@ export default function FilePreviewDialog({
                 </Toolbar>
             </AppBar>
 
-            {/* Full-height preview area */}
+            {/* Content */}
             <Box
                 sx={{
+                    position: 'relative', // anchors absolutely positioned previews
                     flex: 1,
                     minHeight: 0,
                     width: '100%',
-                    // height: "100%",
                     overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
                 }}
             >
-                {/* Loading state */}
                 {loading && (
                     <Box
                         sx={{
-                            flex: 1,
+                            position: 'absolute',
+                            inset: 0,
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'center',
@@ -159,45 +165,30 @@ export default function FilePreviewDialog({
                             gap: 2,
                         }}
                     >
-                        <CircularProgress size={32} />
-
+                        <CircularProgress size={32} sx={{ color: '#ffffff' }} />
                         <Typography
-                            color="text.secondary"
                             fontSize={13}
+                            sx={{ color: 'rgba(255,255,255,0.7)' }}
                         >
                             Loading preview...
                         </Typography>
                     </Box>
                 )}
 
-                {/* Error state */}
                 {!loading && error && (
                     <Box sx={{ p: 3 }}>
-                        <Alert severity="error">
-                            {error}
-                        </Alert>
+                        <Alert severity="error">{error}</Alert>
                     </Box>
                 )}
 
-                {/* File content */}
                 {!loading && !error && previewUrl && (
-                    <Box
-                        sx={{
-                            flex: 1,
-                            minHeight: 0,
-                            width: '100%',
-                            height: '100%',
-                            overflow: 'hidden',
-                        }}
-                    >
-                        <FilePreviewContent
-                            file={file}
-                            src={previewUrl}
-                        />
-                    </Box>
-                    
+                    <FilePreviewContent
+                        key={file.id}
+                        file={file}
+                        src={previewUrl}
+                    />
                 )}
             </Box>
-        </Box>
+        </Dialog>
     );
 }

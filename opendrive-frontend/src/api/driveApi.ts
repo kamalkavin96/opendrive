@@ -74,26 +74,27 @@ export const filesApi = {
     http.delete(`/files/${id}`).then(() => undefined),
 
   // Browser navigation URL (includes API prefix)
-  downloadUrl: (id: string) =>`/files/${id}/download`,
+  downloadUrl: (id: string) =>
+    `${API_BASE.replace(/\/$/, '')}/files/${id}/download`,
 
   // Authenticated download through Axios
-  download: async (id: string) => {
-    const response = await http.get(
-      `/files/${id}/download`,
-      { responseType: 'blob' },
-    );
+  // download: async (id: string) => {
+  //   const response = await http.get(
+  //     `/files/${id}/download`,
+  //     { responseType: 'blob' },
+  //   );
 
-    const blobUrl = URL.createObjectURL(response.data);
+  //   const blobUrl = URL.createObjectURL(response.data);
 
-    const anchor = document.createElement('a');
-    anchor.href = blobUrl;
-    anchor.download = 'download';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
+  //   const anchor = document.createElement('a');
+  //   anchor.href = blobUrl;
+  //   anchor.download = 'download';
+  //   document.body.appendChild(anchor);
+  //   anchor.click();
+  //   anchor.remove();
 
-    URL.revokeObjectURL(blobUrl);
-  },
+  //   URL.revokeObjectURL(blobUrl);
+  // },
 
   uploadFolder: (files: File[], targetFolderId?: string) => {
     const formData = new FormData();
@@ -119,5 +120,44 @@ export const filesApi = {
         files: FileResponse[];
       }>('/files/upload-folder', formData)
       .then((response) => response.data);
+  },
+
+  streamUrl: (id: string) => `${API_BASE.replace(/\/$/, '')}/files/${id}/stream`,
+  downloadPath: (id: string) => `/files/${id}/download`,
+
+  download: async (id: string, fileName: string) => {
+    const response = await http.get(
+      `/files/${id}/download`,
+      {
+        responseType: 'blob',
+      },
+    );
+
+    const blobUrl = URL.createObjectURL(response.data);
+
+    const anchor = document.createElement('a');
+    anchor.href = blobUrl;
+    anchor.download = fileName;
+
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  },
+
+  saveContent: async (
+    id: string,
+    blob: Blob,
+    fileName: string,
+    expectedChecksum?: string,
+  ): Promise<FileResponse> => {
+    const form = new FormData();
+    form.append('file', blob, fileName);
+
+    const res = await http.put<FileResponse>(`/files/${id}/content`, form, {
+      params: expectedChecksum ? { expectedChecksum } : undefined,
+    });
+    return res.data;
   },
 };

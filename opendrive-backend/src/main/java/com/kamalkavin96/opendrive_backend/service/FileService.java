@@ -13,12 +13,19 @@ import com.kamalkavin96.opendrive_backend.storage.StorageProvider;
 import com.kamalkavin96.opendrive_backend.util.NameValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -218,5 +225,75 @@ public class FileService {
 
     /** Metadata plus an open stream; the caller must close the stream. */
     public record FileDownload(FileMetadata metadata, InputStream stream) {
+    }
+
+    /**
+     * Replaces the content of an existing file, e.g. after it was edited in the spreadsheet preview.
+     * <p>
+     * Not @Transactional on purpose, for the same reason as {@link #upload}. The new bytes are
+     * written under a fresh object key and the old object is removed only after the metadata points
+     * at the new one, so a failed save can never corrupt the original.
+     * <p>
+     * {@code expectedChecksum} is optional optimistic concurrency: the checksum of the version the
+     * user opened. If the file has changed since, the save is rejected with 409.
+     */
+    public FileResponse overwriteContent(UUID id, MultipartFile upload, String expectedChecksum) {
+        if (upload == null || upload.isEmpty()) {
+            throw new BadRequestException("No file content was uploaded");
+        }
+        long maxSize = storageProperties.getUpload().getMaxFileSize();
+        if (maxSize > 0 && upload.getSize() > maxSize) {
+            throw new BadRequestException("File exceeds the maximum upload size of " + maxSize + " bytes");
+        }
+
+        FileMetadata file = findActive(id);
+
+        if (expectedChecksum != null && !expectedChecksum.isBlank()
+                && !expectedChecksum.equalsIgnoreCase(file.getChecksum())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "File was modified by someone else. Reload before saving.");
+        }
+
+        // Only .xlsx can be rewritten: the editor exports plain .xlsx, which would
+        // corrupt .xlsm (macro) files saved under their original name.
+        if (!file.getFileName().toLowerCase().endsWith(".xlsx")) {
+            throw new BadRequestException("Only .xlsx files can be edited");
+        }
+
+        String oldKey = file.getObjectKey();
+        String newKey = newObjectKey();
+        MessageDigest digest = newDigest();
+
+        try (InputStream raw = new BufferedInputStream(upload.getInputStream())) {
+            // .xlsx is a zip archive: reject anything that doesn't start with "PK"
+            raw.mark(4);
+            byte[] head = raw.readNBytes(4);
+            raw.reset();
+            if (head.length < 4 || head[0] != 'P' || head[1] != 'K') {
+                throw new BadRequestException("Uploaded content is not a valid .xlsx file");
+            }
+            try (InputStream in = new DigestInputStream(raw, digest)) {
+                storageProvider.store(newKey, in);
+            }
+        } catch (IOException e) {
+            removeQuietly(newKey);
+            throw new StorageException("Failed to store updated file", e);
+        }
+
+        file.setObjectKey(newKey);
+        file.setFileSize(upload.getSize());
+        file.setChecksum(HexFormat.of().formatHex(digest.digest()));
+
+        FileResponse response;
+        try {
+            response = FileResponse.from(fileRepository.save(file));
+        } catch (RuntimeException e) {
+            removeQuietly(newKey);
+            throw e;
+        }
+
+        // Metadata now points at the new object; the previous bytes are no longer referenced.
+        removeQuietly(oldKey);
+        return response;
     }
 }
