@@ -8,6 +8,9 @@ import UnsupportedPreview from './renderers/UnsupportedPreview';
 import ExcelPreview from './renderers/ExcelPreview';
 import PptxPreview from './renderers/PptxPreview';
 import DocxPreview from './renderers/DocxPreview';
+import TextPreview from './renderers/TextPreview';
+import MarkdownPreview from './renderers/MarkdownPreview';
+import CsvPreview from './renderers/CsvPreview';
 
 export const previewRegistry: PreviewDefinition[] = [
   {
@@ -22,7 +25,7 @@ export const previewRegistry: PreviewDefinition[] = [
   {
     category: 'video',
     extensions: [
-      'mp4', 'webm', 'ogg', 'mov', 'mkv',
+      'mp4', 'webm', 'mov', 'mkv',
       'avi', 'm4v', 'mpeg', 'mpg', '3gp',
     ],
     mimeTypes: ['video/'],
@@ -45,13 +48,19 @@ export const previewRegistry: PreviewDefinition[] = [
   },
   {
     category: 'spreadsheet',
-    extensions: ['xlsx', 'xls', 'csv'],
+    extensions: ['xlsx', 'xlsm', 'xls'],
     mimeTypes: [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel.sheet.macroenabled.12',
       'application/vnd.ms-excel',
-      'text/csv',
     ],
     component: ExcelPreview,
+  },
+  {
+    category: 'csv',
+    extensions: ['csv', 'tsv'],
+    mimeTypes: ['text/csv', 'text/tab-separated-values'],
+    component: CsvPreview,
   },
   {
     category: 'presentation',
@@ -68,6 +77,31 @@ export const previewRegistry: PreviewDefinition[] = [
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ],
     component: DocxPreview,
+  },
+  {
+    category: 'markdown',
+    extensions: ['md', 'markdown'],
+    mimeTypes: ['text/markdown'],
+    component: MarkdownPreview,
+  },
+  {
+    // Keep this LAST: 'text/' is a catch-all prefix
+    category: 'text',
+    extensions: [
+      'txt', 'log', 'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'conf',
+      'properties', 'env', 'gitignore', 'sql', 'sh', 'bat', 'ps1',
+      'js', 'jsx', 'mjs', 'ts', 'tsx', 'css', 'scss', 'less',
+      'html', 'htm', 'java', 'kt', 'py', 'go', 'rs', 'c', 'cpp', 'h',
+      'cs', 'php', 'rb', 'swift', 'dart', 'gradle',
+    ],
+    mimeTypes: [
+      'text/',
+      'application/json',
+      'application/xml',
+      'application/x-yaml',
+      'application/javascript',
+    ],
+    component: TextPreview,
   },
 ];
 

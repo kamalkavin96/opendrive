@@ -12,6 +12,8 @@ export type PreviewCategory =
   | 'pdf'
   | 'audio'
   | 'text'
+  | 'markdown'
+  | 'csv'
   | 'document'
   | 'spreadsheet'
   | 'presentation'
