@@ -46,7 +46,7 @@ export const filesApi = {
 
   remove: (id: string) => http.delete(`/files/${id}`).then(() => undefined),
 
-  downloadUrl: (id: string) => `${API_BASE}/files/${id}/download`,
+  downloadUrl: (id: string) => `/files/${id}/download`,
 
   uploadFolder: (files: File[], targetFolderId?: string,) => {
     const formData = new FormData();

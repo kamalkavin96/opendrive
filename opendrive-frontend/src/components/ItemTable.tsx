@@ -32,9 +32,15 @@ import {
 } from 'react-icons/md';
 
 import { filesApi } from '../api/driveApi';
-import type { DriveItem, FileResponse, FolderResponse } from '../api/types';
+
+import type {
+  DriveItem,
+  FileResponse,
+  FolderResponse,
+} from '../api/types';
 
 import { useDriveMutations } from '../hooks/useDrive';
+import { useFilePreview } from '../hooks/useFilePreview';
 
 import { DEFAULT_FOLDER_COLOR } from '../constants/folderColors';
 
@@ -47,6 +53,11 @@ import {
 } from './Dialogs';
 
 import FileIcon from './FileIcon';
+import FilePreviewDialog from './filepreview/FilePreviewDialog';
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 interface Props {
   folders: FolderResponse[];
@@ -65,6 +76,10 @@ type MenuState = {
   anchor: HTMLElement;
   item: DriveItem;
 };
+
+/* -------------------------------------------------------------------------- */
+/* Constants                                                                  */
+/* -------------------------------------------------------------------------- */
 
 const HOVER_BG = '#f3f2f1';
 const HEADER_BG = '#faf9f8';
@@ -86,7 +101,10 @@ const headerCellSx = {
 } as const;
 
 const hideOnMobile = {
-  display: { xs: 'none', sm: 'table-cell' },
+  display: {
+    xs: 'none',
+    sm: 'table-cell',
+  },
 } as const;
 
 /* -------------------------------------------------------------------------- */
@@ -120,13 +138,21 @@ function EmptyState({
 interface RowProps {
   item: DriveItem;
   menuOpen: boolean;
+
   onOpenMenu: (
     event: MouseEvent<HTMLElement>,
     item: DriveItem,
   ) => void;
+
+  onPreview: (file: FileResponse) => void;
 }
 
-function ItemRow({ item, menuOpen, onOpenMenu, }: Readonly<RowProps>) {
+function ItemRow({
+  item,
+  menuOpen,
+  onOpenMenu,
+  onPreview,
+}: Readonly<RowProps>) {
   const navigate = useNavigate();
 
   const isFolder = item.kind === 'folder';
@@ -160,15 +186,9 @@ function ItemRow({ item, menuOpen, onOpenMenu, }: Readonly<RowProps>) {
           bgcolor: HOVER_BG,
         },
 
-        '@media (hover: hover)': {
-          '& .row-actions': {
-            opacity: 1,
-            visibility: 'visible',
-          },
-
-          '&:hover .row-actions, & .row-actions:focus-visible': {
-            opacity: 1,
-          },
+        '& .row-actions': {
+          opacity: 1,
+          visibility: 'visible',
         },
       }}
     >
@@ -184,8 +204,16 @@ function ItemRow({ item, menuOpen, onOpenMenu, }: Readonly<RowProps>) {
         >
           <FileIcon
             kind={item.kind}
-            fileName={item.kind === 'file' ? item.data.fileName : undefined}
-            contentType={item.kind === 'file' ? item.data.contentType : null}
+            fileName={
+              item.kind === 'file'
+                ? item.data.fileName
+                : undefined
+            }
+            contentType={
+              item.kind === 'file'
+                ? item.data.contentType
+                : null
+            }
             color={
               item.kind === 'folder'
                 ? item.data.color ?? DEFAULT_FOLDER_COLOR
@@ -213,13 +241,25 @@ function ItemRow({ item, menuOpen, onOpenMenu, }: Readonly<RowProps>) {
               </Link>
             ) : (
               <Link
-                href={filesApi.downloadUrl(item.data.id)}
+                component="button"
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPreview(item.data);
+                }}
                 underline="hover"
                 color="text.primary"
                 noWrap
                 sx={{
                   display: 'block',
                   fontSize: 14,
+                  fontWeight: 500,
+                  textAlign: 'left',
+                  border: 0,
+                  background: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
                 }}
               >
                 {item.data.fileName}
@@ -435,9 +475,27 @@ export default function ItemTable({
     remove,
   } = useDriveMutations();
 
+  /* ---------------------------------------------------------------------- */
+  /* State                                                                  */
+  /* ---------------------------------------------------------------------- */
+
   const [menu, setMenu] = useState<MenuState | null>(null);
 
   const [action, setAction] = useState<ActiveAction | null>(null);
+
+  /* File Preview */
+  const {
+    file: previewFile,
+    url: previewUrl,
+    loading: previewLoading,
+    error: previewError,
+    openPreview,
+    closePreview,
+  } = useFilePreview();
+
+  /* ---------------------------------------------------------------------- */
+  /* Items                                                                  */
+  /* ---------------------------------------------------------------------- */
 
   const items: DriveItem[] = [
     ...folders.map(
@@ -527,8 +585,9 @@ export default function ItemTable({
         component={Paper}
         variant="outlined"
         sx={{
+          border: 0,
+          boxShadow: 'none',
           borderRadius: 0,
-          // borderColor: 'divider',
           maxHeight: 'calc(100vh - 134px)',
           overflow: 'auto',
           scrollbarGutter: 'stable',
@@ -551,7 +610,10 @@ export default function ItemTable({
           },
         }}
       >
-        <Table aria-label="Files and folders">
+        <Table
+          aria-label="Files and folders"
+          stickyHeader
+        >
           <TableHead>
             <TableRow>
               <TableCell sx={headerCellSx}>
@@ -580,7 +642,7 @@ export default function ItemTable({
               </TableCell>
 
               <TableCell
-                align='right'
+                align="right"
                 sx={{
                   ...headerCellSx,
                   width: 100,
@@ -592,7 +654,6 @@ export default function ItemTable({
                     filter: 'drop-shadow(0.5px 0 currentColor)',
                     position: 'relative',
                     top: 5,
-
                   }}
                 />
               </TableCell>
@@ -601,14 +662,12 @@ export default function ItemTable({
 
           <TableBody>
             {items.map((item) => (
-
               <ItemRow
                 key={`${item.kind}-${item.data.id}`}
                 item={item}
-                menuOpen={
-                  menuItemId === item.data.id
-                }
+                menuOpen={menuItemId === item.data.id}
                 onOpenMenu={openMenu}
+                onPreview={openPreview}
               />
             ))}
           </TableBody>
@@ -620,9 +679,16 @@ export default function ItemTable({
         menu={menu}
         onClose={closeMenu}
         onAction={startAction}
-        onCopy={(fileId) =>
-          copyFile.mutate(fileId)
-        }
+        onCopy={(fileId) => copyFile.mutate(fileId)}
+      />
+
+      {/* File Preview Dialog */}
+      <FilePreviewDialog
+        file={previewFile}
+        previewUrl={previewUrl}
+        loading={previewLoading}
+        error={previewError}
+        onClose={closePreview}
       />
 
       {/* Rename dialog */}
