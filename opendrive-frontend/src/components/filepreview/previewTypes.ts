@@ -18,7 +18,8 @@ export type PreviewCategory =
   | 'markdown'
   | 'code'
   | 'text'
-  | 'unsupported';
+  | 'unsupported'
+  | 'drawio';
 
 export interface PreviewDefinition {
   category: PreviewCategory;

@@ -12,6 +12,7 @@ import TextPreview from './renderers/TextPreview';
 import MarkdownPreview from './renderers/MarkdownPreview';
 import CsvPreview from './renderers/CsvPreview';
 import CodePreview from './renderers/CodePreview';
+import DrawioPreview from './renderers/DrawioPreview';
 
 export const previewRegistry: PreviewDefinition[] = [
   {
@@ -145,6 +146,12 @@ export const previewRegistry: PreviewDefinition[] = [
     mimeTypes: [],
     component: CodePreview,
   },
+  {
+  category: 'drawio',
+  extensions: ['drawio', 'drawio.xml'],
+  mimeTypes: ['application/vnd.jgraph.mxfile', 'application/xml'],
+  component: DrawioPreview,
+},
 ];
 
 export const unsupportedPreview: PreviewDefinition = {
