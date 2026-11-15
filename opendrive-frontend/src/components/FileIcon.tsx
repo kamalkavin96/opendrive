@@ -19,6 +19,8 @@ import {
   MdApps,
 } from 'react-icons/md';
 
+import type { IconType } from 'react-icons';
+
 interface Props {
   kind: 'folder' | 'file';
   contentType?: string | null;
@@ -434,4 +436,90 @@ export default function FileIcon({
       color={FILE_COLORS.default}
     />
   );
+}
+
+interface FileIconResult {
+  icon: IconType;
+  color: string;
+}
+
+export function getFileIcon(fileName: string): FileIconResult {
+  const name = (fileName ?? '').toLowerCase().trim();
+  const fileNameOnly = name.split(/[\\/]/).pop() ?? name;
+  const extension = getExtension(fileNameOnly);
+
+  const specialType = SPECIAL_FILES[fileNameOnly];
+
+  if (specialType) {
+    const specialIcons: Partial<
+      Record<keyof typeof EXTENSIONS, FileIconResult>
+    > = {
+      security: { icon: MdSecurity, color: FILE_COLORS.security },
+      config: { icon: MdSettings, color: FILE_COLORS.config },
+      programming: { icon: MdCode, color: FILE_COLORS.code },
+      terminal: { icon: MdTerminal, color: FILE_COLORS.code },
+      text: { icon: MdTextSnippet, color: FILE_COLORS.text },
+      logs: { icon: MdTextSnippet, color: FILE_COLORS.text },
+    };
+
+    if (specialIcons[specialType]) {
+      return specialIcons[specialType]!;
+    }
+  }
+
+  if (hasExtension(extension, EXTENSIONS.security))
+    return { icon: MdSecurity, color: FILE_COLORS.security };
+
+  if (hasExtension(extension, EXTENSIONS.word))
+    return { icon: MdDescription, color: FILE_COLORS.word };
+
+  if (hasExtension(extension, EXTENSIONS.excel))
+    return { icon: MdTableChart, color: FILE_COLORS.excel };
+
+  if (hasExtension(extension, EXTENSIONS.powerpoint))
+    return { icon: MdSlideshow, color: FILE_COLORS.powerpoint };
+
+  if (extension === 'pdf')
+    return { icon: MdPictureAsPdf, color: FILE_COLORS.pdf };
+
+  if (hasExtension(extension, EXTENSIONS.image))
+    return { icon: MdImage, color: FILE_COLORS.image };
+
+  if (hasExtension(extension, EXTENSIONS.video))
+    return { icon: MdVideocam, color: FILE_COLORS.video };
+
+  if (hasExtension(extension, EXTENSIONS.audio))
+    return { icon: MdAudiotrack, color: FILE_COLORS.audio };
+
+  if (hasExtension(extension, EXTENSIONS.archive))
+    return { icon: MdArchive, color: FILE_COLORS.archive };
+
+  if (hasExtension(extension, EXTENSIONS.database))
+    return { icon: MdStorage, color: FILE_COLORS.database };
+
+  if (hasExtension(extension, EXTENSIONS.terminal))
+    return { icon: MdTerminal, color: FILE_COLORS.code };
+
+  if (hasExtension(extension, EXTENSIONS.config))
+    return { icon: MdSettings, color: FILE_COLORS.config };
+
+  if (hasExtension(extension, EXTENSIONS.programming))
+    return { icon: MdCode, color: FILE_COLORS.code };
+
+  if (hasExtension(extension, EXTENSIONS.fonts))
+    return { icon: MdFontDownload, color: FILE_COLORS.font };
+
+  if (hasExtension(extension, EXTENSIONS.executable))
+    return { icon: MdApps, color: FILE_COLORS.executable };
+
+  if (
+    hasExtension(extension, EXTENSIONS.logs) ||
+    hasExtension(extension, EXTENSIONS.temporary) ||
+    hasExtension(extension, EXTENSIONS.text) ||
+    fileNameOnly.endsWith('~')
+  ) {
+    return { icon: MdTextSnippet, color: FILE_COLORS.text };
+  }
+
+  return { icon: MdInsertDriveFile, color: FILE_COLORS.default };
 }

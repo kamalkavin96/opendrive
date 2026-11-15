@@ -25,6 +25,7 @@ import {
 import {
   MdArrowUpward,
   MdCheck,
+  MdFilePresent,
   MdFolder,
   MdInsertDriveFile,
 } from 'react-icons/md';
@@ -36,6 +37,7 @@ import {
   FOLDER_COLORS,
   DEFAULT_FOLDER_COLOR,
 } from '../constants/folderColors';
+import { getFileIcon } from './FileIcon';
 
 // --------------------------------------------------
 // Shared styles
@@ -400,10 +402,16 @@ export function ConfirmDeleteDialog({
             minWidth: 0,
           }}
         >
-          <MdFolder
-            size={28}
-            color="#F9A825"
-          />
+
+          {(() => {
+            if (item.kind === 'folder') {
+              return <MdFolder size={28} color={item.data.color ?? undefined} />;
+            }
+
+            const { icon: Icon, color } = getFileIcon(item.data.fileName);
+
+            return <Icon size={28} color={color} />;
+          })()}
 
           <Typography
             fontWeight={600}

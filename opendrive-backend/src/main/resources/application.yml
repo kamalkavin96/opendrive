@@ -1,5 +1,9 @@
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    max-swallow-size: -1
+    max-part-count: 2000
+    max-part-header-size: 4KB
 
 spring:
   application:
@@ -14,21 +18,22 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update          # development only - see application-prod.yml
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
         format_sql: true
 
   flyway:
-    enabled: false              # development only - see application-prod.yml
+    enabled: false
     locations: classpath:db/migration
 
   servlet:
     multipart:
       enabled: true
       max-file-size: 5GB
-      max-request-size: 5GB
+      max-request-size: 10GB
+      file-size-threshold: 1MB
 
 opendrive:
   storage:

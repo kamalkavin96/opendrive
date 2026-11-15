@@ -8,6 +8,7 @@ export interface FolderResponse {
 }
 
 export interface FileResponse {
+  name: any;
   id: string;
   fileName: string;
   contentType: string | null;
