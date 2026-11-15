@@ -27,6 +27,7 @@ import {
   MdDriveFileMove,
   MdDriveFileRenameOutline,
   MdFolderOpen,
+  MdMenu,
   MdMoreVert,
 } from 'react-icons/md';
 
@@ -78,7 +79,10 @@ const headerCellSx = {
   color: 'text.secondary',
   fontSize: 14.5,
   fontWeight: 800,
-  py: 1,
+  py: 1.5,
+  position: 'sticky',
+  top: 0,
+  zIndex: 2,
 } as const;
 
 const hideOnMobile = {
@@ -158,7 +162,8 @@ function ItemRow({ item, menuOpen, onOpenMenu, }: Readonly<RowProps>) {
 
         '@media (hover: hover)': {
           '& .row-actions': {
-            opacity: menuOpen ? 1 : 0,
+            opacity: 1,
+            visibility: 'visible',
           },
 
           '&:hover .row-actions, & .row-actions:focus-visible': {
@@ -523,8 +528,27 @@ export default function ItemTable({
         variant="outlined"
         sx={{
           borderRadius: 0,
-          overflow: 'hidden',
-          borderColor: 'divider',
+          // borderColor: 'divider',
+          maxHeight: 'calc(100vh - 134px)',
+          overflow: 'auto',
+          scrollbarGutter: 'stable',
+
+          '&::-webkit-scrollbar': {
+            width: 18,
+            height: 18,
+          },
+
+          '&::-webkit-scrollbar-track': {
+            background: 'transparent',
+            margin: '8px',
+          },
+
+          '&::-webkit-scrollbar-thumb': {
+            bgcolor: 'action.disabled',
+            borderRadius: 10,
+            border: '6px solid transparent',
+            backgroundClip: 'content-box',
+          },
         }}
       >
         <Table aria-label="Files and folders">
@@ -556,11 +580,22 @@ export default function ItemTable({
               </TableCell>
 
               <TableCell
+                align='right'
                 sx={{
                   ...headerCellSx,
-                  width: 56,
+                  width: 100,
                 }}
-              />
+              >
+                <MdMenu
+                  size={20}
+                  style={{
+                    filter: 'drop-shadow(0.5px 0 currentColor)',
+                    position: 'relative',
+                    top: 5,
+
+                  }}
+                />
+              </TableCell>
             </TableRow>
           </TableHead>
 

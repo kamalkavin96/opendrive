@@ -16,7 +16,7 @@ export default function AppLayout() {
 
       <SideDrawer></SideDrawer>
 
-      <Box component="main" sx={{ flex: 1, minWidth: 0, p: 3 }}>
+      <Box component="main" sx={{ flex: 1, minWidth: 0, px: 2, py: 1 }}>
         <Toolbar />
         <Outlet />
       </Box>

@@ -46,7 +46,7 @@ export default function ExplorerActions({onNewFolder, onUpload, onUploadFolder,}
         <Stack direction="row">
 
             <Button
-                variant="contained"
+                variant="outlined"
                 startIcon={<MdAdd />}
                 onClick={handleClick}
                 aria-controls={open ? 'new-menu' : undefined}
