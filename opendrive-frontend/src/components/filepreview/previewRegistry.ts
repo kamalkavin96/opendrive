@@ -11,6 +11,7 @@ import DocxPreview from './renderers/DocxPreview';
 import TextPreview from './renderers/TextPreview';
 import MarkdownPreview from './renderers/MarkdownPreview';
 import CsvPreview from './renderers/CsvPreview';
+import CodePreview from './renderers/CodePreview';
 
 export const previewRegistry: PreviewDefinition[] = [
   {
@@ -88,11 +89,10 @@ export const previewRegistry: PreviewDefinition[] = [
     // Keep this LAST: 'text/' is a catch-all prefix
     category: 'text',
     extensions: [
-      'txt', 'log', 'json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'conf',
-      'properties', 'env', 'gitignore', 'sql', 'sh', 'bat', 'ps1',
-      'js', 'jsx', 'mjs', 'ts', 'tsx', 'css', 'scss', 'less',
-      'html', 'htm', 'java', 'kt', 'py', 'go', 'rs', 'c', 'cpp', 'h',
-      'cs', 'php', 'rb', 'swift', 'dart', 'gradle',
+      'txt', 
+      // 'log', 'json', 'xml', 
+      // 'yaml', 'yml',
+      // 'toml', 'ini', 'conf', 'properties', 'env', 'gitignore',
     ],
     mimeTypes: [
       'text/',
@@ -102,6 +102,48 @@ export const previewRegistry: PreviewDefinition[] = [
       'application/javascript',
     ],
     component: TextPreview,
+  },
+  {
+    category: 'code',
+    extensions: [
+      'java',
+      'kt',
+      'kts',
+      'py',
+      'js',
+      'jsx',
+      'mjs',
+      'cjs',
+      'ts',
+      'tsx',
+      'html',
+      'htm',
+      'css',
+      'scss',
+      'less',
+      'sql',
+      'sh',
+      'bash',
+      'bat',
+      'ps1',
+      'c',
+      'h',
+      'cpp',
+      'hpp',
+      'cs',
+      'go',
+      'rs',
+      'php',
+      'rb',
+      'swift',
+      'dart',
+      'graphql',
+      'gradle',
+      'yaml', 'yml', 'log', 'json', 'xml', 'toml', 'ini', 'conf', 'properties', 'env', 
+      'gitignore', 'gitattributes', 'cmd', '', 'properties'
+    ],
+    mimeTypes: [],
+    component: CodePreview,
   },
 ];
 

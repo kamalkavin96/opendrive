@@ -11,12 +11,13 @@ export type PreviewCategory =
   | 'video'
   | 'pdf'
   | 'audio'
-  | 'text'
-  | 'markdown'
-  | 'csv'
-  | 'document'
   | 'spreadsheet'
+  | 'csv'
   | 'presentation'
+  | 'document'
+  | 'markdown'
+  | 'code'
+  | 'text'
   | 'unsupported';
 
 export interface PreviewDefinition {
