@@ -240,7 +240,7 @@ function PathBreadcrumbs({
           <Typography
             key="root"
             color="text.primary"
-            sx={crumbSx}
+            sx={crumbSx }
           >
             My files
           </Typography>

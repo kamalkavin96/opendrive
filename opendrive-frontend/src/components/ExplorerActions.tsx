@@ -23,7 +23,7 @@ interface ExplorerActionsProps {
     onUploadFolder: () => void;
 }
 
-export default function ExplorerActions({onNewFolder, onUpload, onUploadFolder,}: Readonly<ExplorerActionsProps>) {
+export default function ExplorerActions({ onNewFolder, onUpload, onUploadFolder, }: Readonly<ExplorerActionsProps>) {
 
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -47,11 +47,35 @@ export default function ExplorerActions({onNewFolder, onUpload, onUploadFolder,}
 
             <Button
                 variant="outlined"
-                startIcon={<MdAdd />}
+                size="small"
+                startIcon={<MdAdd size={18} />}
                 onClick={handleClick}
                 aria-controls={open ? 'new-menu' : undefined}
                 aria-haspopup="true"
                 aria-expanded={open ? 'true' : undefined}
+                sx={{
+                    minWidth: 100,
+                    height: 36,
+                    px: 2.5,
+                    py: 0,
+                    fontSize: 15,
+                    fontWeight: 800,
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    borderWidth: 1,
+                    transition: 'all 0.2s ease',
+
+                    '&:hover': {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        borderColor: 'primary.main',
+                        borderWidth: 1,
+                    },
+
+                    '& .MuiButton-startIcon': {
+                        mr: 0.75,
+                    },
+                }}
             >
                 New
             </Button>
