@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: opendrive-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: opendrive
+      POSTGRES_USER: opendrive
+      POSTGRES_PASSWORD: opendrive123
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - opendrive-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opendrive -d opendrive"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  opendrive-postgres-data:
